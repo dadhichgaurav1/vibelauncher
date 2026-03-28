@@ -96,17 +96,18 @@ async def run_media_generator(state: VibeLaunchState) -> dict:
 
 
 def _enrich_image_prompt(base_prompt: str, visual_brief: dict) -> str:
+    """Enrich prompt with natural language only — no hex codes, no technical metadata."""
     aesthetic = visual_brief.get("aesthetic", "")
-    colors = ", ".join(visual_brief.get("color_palette", []))
     style = visual_brief.get("style", "")
     mood = visual_brief.get("mood", "")
-    return f"""{base_prompt}\n\nStyle: {style}. Aesthetic: {aesthetic}. Mood: {mood}.\nColor palette: {colors}.\nHigh quality, professional. No watermarks. 1200x675, 16:9."""
+    # Deliberately exclude hex color codes — Imagen renders them as text
+    return f"""{base_prompt}. {style} style, {aesthetic} aesthetic, {mood} mood. High quality professional photograph, no text, no watermarks, no annotations, no labels, no hex codes."""
 
 
 def _enrich_video_prompt(base_prompt: str, visual_brief: dict) -> str:
     aesthetic = visual_brief.get("aesthetic", "")
     mood = visual_brief.get("mood", "")
-    return f"""{base_prompt}\n\nVisual style: {aesthetic}. Mood: {mood}.\nHook in first 2 seconds. 9:16 vertical, 1080p."""
+    return f"""{base_prompt}. {aesthetic} aesthetic, {mood} mood. Cinematic, smooth motion, no text overlays."""
 
 
 async def _generate_image(prompt: str) -> str | None:
@@ -134,7 +135,7 @@ async def _generate_video(prompt: str, duration_seconds: int) -> str | None:
             resp = await client.post(
                 f"{GEMINI_VEO_URL}?key={GEMINI_API_KEY}",
                 json={
-                    "instances": [{"prompt": prompt, "duration": min(duration_seconds, 8)}],
+                    "instances": [{"prompt": prompt}],
                     "parameters": {"aspectRatio": "9:16", "sampleCount": 1},
                 },
             )

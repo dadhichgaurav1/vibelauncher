@@ -54,8 +54,17 @@ Return JSON: {{ "tweets": [{{ "position": int, "text": str, "char_count": int, "
 IMAGE_PROMPT_SYSTEM = """Write image generation prompts for a product launch on X.
 
 Images must be non-generic, non-stock, non-AI-slop. Match the visual brief exactly.
-High-performing types: data visualizations, before/after, annotated screenshots, quote cards, framework visuals.
-Generate 2-4 prompts with style, composition, colors, mood.
+High-performing types: cinematic product screenshots, mood shots, before/after comparisons, atmospheric scenes.
+
+CRITICAL RULES FOR IMAGE PROMPTS:
+- NEVER include hex color codes (like #FF5500) in prompts — the AI renders them as visible text
+- NEVER include annotations, labels, arrows, or callout text
+- NEVER ask for text overlays, watermarks, or UI mockup text
+- Describe colors by name (warm amber, deep navy) not hex codes
+- Focus on mood, composition, lighting, and subject matter
+- Each prompt should produce a clean, professional image with NO text rendered in it
+
+Generate 2-4 prompts.
 Return JSON: { "images": [{ "prompt": str, "dimensions": "1200x675", "placement": str }] }"""
 
 
