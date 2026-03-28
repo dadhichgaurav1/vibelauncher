@@ -94,6 +94,23 @@ export default function LaunchPage() {
     wsRef.current?.send(
       JSON.stringify({ type: "brainstorm_response", data: responses })
     );
+    // Mark brainstorm as done in sidebar
+    setStages((prev) => {
+      const idx = prev.findIndex((s) => s.name === "human_brainstorm");
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          status: "done",
+          todos: [
+            { id: 1, task: "Generate brainstorm questions", status: "done" },
+            { id: 2, task: "Your input received", status: "done" },
+          ],
+        };
+        return updated;
+      }
+      return prev;
+    });
     setPhase("running");
   }
 

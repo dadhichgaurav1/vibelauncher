@@ -43,7 +43,15 @@ async def product_analyst_node(state: VibeLaunchState) -> dict:
 async def brainstorm_node(state: VibeLaunchState) -> dict:
     """Generate brainstorm questions and interrupt for human input."""
     from nodes.base import llm_json
-    product = state.get("product", {})
+    ws = state["ws_channel"]
+    product = state.get("product") or {}
+
+    await notify(ws, "stage_update", {
+        "name": "human_brainstorm",
+        "label": "Brainstorm",
+        "status": "running",
+        "todos": [{"id": 1, "task": "Generate brainstorm questions", "status": "in_progress"}],
+    })
 
     brainstorm_data = await llm_json(
         system="""You are generating a smart brainstorm questionnaire for a product launch.
@@ -70,8 +78,18 @@ Return JSON: {
         user=f"Product brief:\n{str(product)}\n\nGenerate smart brainstorm questions.",
     )
 
-    await notify(state["ws_channel"], "brainstorm_prompt", brainstorm_data)
-    await notify(state["ws_channel"], "phase", "brainstorm")
+    await notify(ws, "stage_update", {
+        "name": "human_brainstorm",
+        "label": "Brainstorm",
+        "status": "running",
+        "todos": [
+            {"id": 1, "task": "Generate brainstorm questions", "status": "done"},
+            {"id": 2, "task": "Waiting for your input", "status": "in_progress"},
+        ],
+    })
+
+    await notify(ws, "brainstorm_prompt", brainstorm_data)
+    await notify(ws, "phase", "brainstorm")
 
     return {"brainstorm_prompt": brainstorm_data}
 
