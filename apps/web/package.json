@@ -22,7 +22,6 @@
     "@radix-ui/react-progress": "^1.1.0",
     "@radix-ui/react-scroll-area": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.0",
-    "@radix-ui/react-badge": "^1.0.0",
     "zod": "^3.23.0",
     "zustand": "^4.5.0",
     "react-hot-toast": "^2.4.0",
