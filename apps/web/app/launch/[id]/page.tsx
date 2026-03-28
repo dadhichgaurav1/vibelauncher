@@ -12,7 +12,11 @@ type Phase = "loading" | "brainstorm" | "running" | "review" | "published";
 export default function LaunchPage() {
   const { id } = useParams<{ id: string }>();
   const [phase, setPhase] = useState<Phase>("loading");
-  const [session, setSession] = useState<LaunchSession | null>(null);
+  const [session, setSession] = useState<LaunchSession>({
+    id: id as string,
+    status: "pending",
+    created_at: new Date().toISOString(),
+  });
   const [stages, setStages] = useState<AgentStage[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -33,7 +37,7 @@ export default function LaunchPage() {
 
         switch (msg.type) {
           case "session":
-            setSession(msg.data);
+            setSession((prev) => ({ ...prev, ...msg.data }));
             break;
           case "phase":
             setPhase(msg.data as Phase);
@@ -51,15 +55,11 @@ export default function LaunchPage() {
             break;
           case "brainstorm_prompt":
             setPhase("brainstorm");
-            setSession((prev) =>
-              prev ? { ...prev, brainstorm_prompt: msg.data } : prev
-            );
+            setSession((prev) => ({ ...prev, brainstorm_prompt: msg.data }));
             break;
           case "content_ready":
             setPhase("review");
-            setSession((prev) =>
-              prev ? { ...prev, content: msg.data } : prev
-            );
+            setSession((prev) => ({ ...prev, content: msg.data }));
             break;
           case "error":
             console.error("[VibeLauncher] Server error:", msg.data);
