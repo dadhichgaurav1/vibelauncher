@@ -42,3 +42,6 @@ apps/extension/dist/
 apps/extension/background.js
 apps/extension/content.js
 apps/extension/popup.js
+*.db
+*.db-shm
+*.db-wal

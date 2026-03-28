@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { BrainstormPanel } from "@/components/chat/BrainstormPanel";
 import { ReviewPanel } from "@/components/review/ReviewPanel";
 import { AgentTrace } from "@/components/AgentTrace";
-import type { LaunchSession, AgentStage } from "@/lib/types";
+import { LiveFeed } from "@/components/LiveFeed";
+import type { LaunchSession, AgentStage, StepOutput } from "@/lib/types";
 
 type Phase = "loading" | "brainstorm" | "running" | "review" | "published";
 
@@ -18,13 +19,13 @@ export default function LaunchPage() {
     created_at: new Date().toISOString(),
   });
   const [stages, setStages] = useState<AgentStage[]>([]);
+  const [stepOutputs, setStepOutputs] = useState<StepOutput[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     let ws: WebSocket | null = null;
 
-    // Small delay to avoid React 18 strict mode double-mount race
     const timer = setTimeout(() => {
       if (cancelled) return;
 
@@ -57,6 +58,21 @@ export default function LaunchPage() {
             setPhase("brainstorm");
             setSession((prev) => ({ ...prev, brainstorm_prompt: msg.data }));
             break;
+          case "step_output": {
+            const key = `${msg.data.stage}-${msg.data.step}`;
+            setStepOutputs((prev) => {
+              const idx = prev.findIndex(
+                (s) => `${s.stage}-${s.step}` === key
+              );
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = msg.data;
+                return updated;
+              }
+              return [...prev, msg.data];
+            });
+            break;
+          }
           case "content_ready":
             setPhase("review");
             setSession((prev) => ({ ...prev, content: msg.data }));
@@ -68,7 +84,10 @@ export default function LaunchPage() {
       };
 
       ws.onopen = () => {
-        if (cancelled) { ws?.close(); return; }
+        if (cancelled) {
+          ws?.close();
+          return;
+        }
         ws!.send(JSON.stringify({ type: "init", launch_id: id }));
       };
 
@@ -94,7 +113,6 @@ export default function LaunchPage() {
     wsRef.current?.send(
       JSON.stringify({ type: "brainstorm_response", data: responses })
     );
-    // Mark brainstorm as done in sidebar
     setStages((prev) => {
       const idx = prev.findIndex((s) => s.name === "human_brainstorm");
       if (idx >= 0) {
@@ -119,6 +137,9 @@ export default function LaunchPage() {
       JSON.stringify({ type: "content_approval", approved, feedback })
     );
   }
+
+  const currentStageName =
+    stages.find((s) => s.status === "running")?.label || "Working...";
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -161,22 +182,11 @@ export default function LaunchPage() {
           )}
 
           {phase === "running" && (
-            <div className="flex items-center justify-center h-full">
-              <div className="space-y-5 text-center max-w-sm">
-                <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Agents working...</p>
-                  <p className="text-xs text-muted-foreground">
-                    Researching your niche, crafting narrative, generating
-                    content. This takes ~2 minutes.
-                  </p>
-                </div>
-                {/* Live stage updates on mobile */}
-                <div className="lg:hidden">
-                  <AgentTrace stages={stages} currentPhase={phase} />
-                </div>
-              </div>
-            </div>
+            <LiveFeed
+              steps={stepOutputs}
+              currentStage={currentStageName}
+              stages={stages}
+            />
           )}
 
           {phase === "review" && session?.content && (

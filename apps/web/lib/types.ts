@@ -2,6 +2,14 @@
 
 export type AgentStageStatus = "pending" | "running" | "done" | "failed";
 
+export interface StepOutput {
+  stage: string;
+  step: string;
+  label: string;
+  data: any;
+  type?: "card" | "preview" | "image" | "status";
+}
+
 export interface TodoItem {
   id: number;
   task: string;

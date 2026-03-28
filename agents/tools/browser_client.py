@@ -41,7 +41,7 @@ async def _send_browser_command(launch_id: str, command: dict) -> dict | None:
 
     try:
         await ws.send_text(json.dumps(command))
-        result = await asyncio.wait_for(result_queue.get(), timeout=30.0)
+        result = await asyncio.wait_for(result_queue.get(), timeout=3.0)
         return result
     except asyncio.TimeoutError:
         return None
@@ -68,7 +68,7 @@ async def fetch_page_content(url: str, launch_id: str) -> str:
 
     # Fallback: direct httpx request
     try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
             resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
             return resp.text[:10000]  # cap at 10k chars
     except Exception:
@@ -88,7 +88,7 @@ async def browser_search_twitter(query: str, launch_id: str) -> list[dict]:
     # Fallback: search via httpx (public search)
     try:
         encoded = query.replace(" ", "+")
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
                 f"https://nitter.net/search?q={encoded}&f=tweets",
                 headers={"User-Agent": "Mozilla/5.0"},
