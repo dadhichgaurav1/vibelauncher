@@ -108,7 +108,7 @@ async def should_retry(
     max_retries: int = 2,
 ) -> bool:
     """Check if we should retry the stage or pass through."""
-    retry_counts = state.get("retry_counts", {})
+    retry_counts = (state.get("retry_counts") or {})
     current_retries = retry_counts.get(stage, 0)
 
     if critique.pass_:

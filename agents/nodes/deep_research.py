@@ -149,7 +149,7 @@ Produce a research_brief JSON with:
     return {
         "research_brief": research_brief,
         "agent_traces": {
-            **state.get("agent_traces", {}),
+            **(state.get("agent_traces") or {}),
             "deep_research": {"todos": todos},
         },
     }

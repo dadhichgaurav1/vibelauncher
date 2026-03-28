@@ -97,7 +97,7 @@ Return LaunchStrategy JSON:
     return {
         "strategy": strategy,
         "agent_traces": {
-            **state.get("agent_traces", {}),
+            **(state.get("agent_traces") or {}),
             "strategy": {"todos": todos},
         },
     }

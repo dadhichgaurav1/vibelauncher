@@ -84,7 +84,7 @@ async def run_media_generator(state: VibeLaunchState) -> dict:
     return {
         "content": updated_content,
         "agent_traces": {
-            **state.get("agent_traces", {}),
+            **(state.get("agent_traces") or {}),
             "media_generator": {"todos": todos},
         },
     }

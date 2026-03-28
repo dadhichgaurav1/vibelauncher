@@ -114,7 +114,7 @@ async def run_publisher(state: VibeLaunchState) -> dict:
     return {
         "published": result.model_dump(),
         "agent_traces": {
-            **state.get("agent_traces", {}),
+            **(state.get("agent_traces") or {}),
             "publisher": {"todos": todos},
         },
     }

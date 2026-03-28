@@ -116,7 +116,7 @@ Return a ProductBrief JSON with fields:
     return {
         "product": product,
         "agent_traces": {
-            **state.get("agent_traces", {}),
+            **(state.get("agent_traces") or {}),
             "product_analyst": {"todos": todos},
         },
     }

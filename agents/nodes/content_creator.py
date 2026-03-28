@@ -205,7 +205,7 @@ Formats to produce: {formats}"""
     return {
         "content": content.model_dump(),
         "agent_traces": {
-            **state.get("agent_traces", {}),
+            **(state.get("agent_traces") or {}),
             "content_creator": {"todos": todos},
         },
     }

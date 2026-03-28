@@ -29,13 +29,13 @@ async def product_analyst_node(state: VibeLaunchState) -> dict:
         output_to_review=updates.get("product", {}),
         completed_todos=updates.get("agent_traces", {}).get("product_analyst", {}).get("todos", []),
     )
-    retry_counts = dict(state.get("retry_counts", {}))
+    retry_counts = dict((state.get("retry_counts") or {}))
     if await should_retry(state, "product_brief", critique):
         retry_counts["product_brief"] = retry_counts.get("product_brief", 0) + 1
         return {**updates, "retry_counts": retry_counts, "_retry": "product_analyst"}
     return {
         **updates,
-        "critiques": {**state.get("critiques", {}), "product_brief": critique.model_dump()},
+        "critiques": {**(state.get("critiques") or {}), "product_brief": critique.model_dump()},
         "retry_counts": retry_counts,
     }
 
@@ -84,13 +84,13 @@ async def deep_research_node(state: VibeLaunchState) -> dict:
         output_to_review=updates.get("research_brief", {}),
         completed_todos=updates.get("agent_traces", {}).get("deep_research", {}).get("todos", []),
     )
-    retry_counts = dict(state.get("retry_counts", {}))
+    retry_counts = dict((state.get("retry_counts") or {}))
     if await should_retry(state, "research_brief", critique):
         retry_counts["research_brief"] = retry_counts.get("research_brief", 0) + 1
         return {**updates, "retry_counts": retry_counts, "_retry": "deep_research"}
     return {
         **updates,
-        "critiques": {**state.get("critiques", {}), "research_brief": critique.model_dump()},
+        "critiques": {**(state.get("critiques") or {}), "research_brief": critique.model_dump()},
         "retry_counts": retry_counts,
     }
 
@@ -103,13 +103,13 @@ async def strategy_node(state: VibeLaunchState) -> dict:
         output_to_review=updates.get("strategy", {}),
         completed_todos=updates.get("agent_traces", {}).get("strategy", {}).get("todos", []),
     )
-    retry_counts = dict(state.get("retry_counts", {}))
+    retry_counts = dict((state.get("retry_counts") or {}))
     if await should_retry(state, "strategy", critique):
         retry_counts["strategy"] = retry_counts.get("strategy", 0) + 1
         return {**updates, "retry_counts": retry_counts, "_retry": "strategy"}
     return {
         **updates,
-        "critiques": {**state.get("critiques", {}), "strategy": critique.model_dump()},
+        "critiques": {**(state.get("critiques") or {}), "strategy": critique.model_dump()},
         "retry_counts": retry_counts,
     }
 
@@ -123,14 +123,14 @@ async def content_creator_node(state: VibeLaunchState) -> dict:
         output_to_review=updates.get("content", {}),
         completed_todos=updates.get("agent_traces", {}).get("content_creator", {}).get("todos", []),
     )
-    retry_counts = dict(state.get("retry_counts", {}))
+    retry_counts = dict((state.get("retry_counts") or {}))
     if await should_retry(state, "content", critique):
         retry_counts["content"] = retry_counts.get("content", 0) + 1
         return {**updates, "retry_counts": retry_counts, "_retry": "content_creator",
                 "approval_feedback": f"Critic notes: {'; '.join(critique.issues)}"}
     return {
         **updates,
-        "critiques": {**state.get("critiques", {}), "content": critique.model_dump()},
+        "critiques": {**(state.get("critiques") or {}), "content": critique.model_dump()},
         "retry_counts": retry_counts,
         "approval_feedback": None,
     }
