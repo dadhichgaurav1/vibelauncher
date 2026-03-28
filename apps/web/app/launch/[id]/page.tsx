@@ -17,50 +17,77 @@ export default function LaunchPage() {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket(`ws://localhost:8000/ws/launch/${id}`);
-    wsRef.current = ws;
+    let cancelled = false;
+    let ws: WebSocket | null = null;
 
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
+    // Small delay to avoid React 18 strict mode double-mount race
+    const timer = setTimeout(() => {
+      if (cancelled) return;
 
-      switch (msg.type) {
-        case "session":
-          setSession(msg.data);
-          break;
-        case "phase":
-          setPhase(msg.data as Phase);
-          break;
-        case "stage_update":
-          setStages((prev) => {
-            const idx = prev.findIndex((s) => s.name === msg.data.name);
-            if (idx >= 0) {
-              const updated = [...prev];
-              updated[idx] = msg.data;
-              return updated;
-            }
-            return [...prev, msg.data];
-          });
-          break;
-        case "brainstorm_prompt":
-          setPhase("brainstorm");
-          setSession((prev) =>
-            prev ? { ...prev, brainstorm_prompt: msg.data } : prev
-          );
-          break;
-        case "content_ready":
-          setPhase("review");
-          setSession((prev) =>
-            prev ? { ...prev, content: msg.data } : prev
-          );
-          break;
+      ws = new WebSocket(`ws://localhost:8000/ws/launch/${id}`);
+      wsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        if (cancelled) return;
+        const msg = JSON.parse(event.data);
+
+        switch (msg.type) {
+          case "session":
+            setSession(msg.data);
+            break;
+          case "phase":
+            setPhase(msg.data as Phase);
+            break;
+          case "stage_update":
+            setStages((prev) => {
+              const idx = prev.findIndex((s) => s.name === msg.data.name);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = msg.data;
+                return updated;
+              }
+              return [...prev, msg.data];
+            });
+            break;
+          case "brainstorm_prompt":
+            setPhase("brainstorm");
+            setSession((prev) =>
+              prev ? { ...prev, brainstorm_prompt: msg.data } : prev
+            );
+            break;
+          case "content_ready":
+            setPhase("review");
+            setSession((prev) =>
+              prev ? { ...prev, content: msg.data } : prev
+            );
+            break;
+          case "error":
+            console.error("[VibeLauncher] Server error:", msg.data);
+            break;
+        }
+      };
+
+      ws.onopen = () => {
+        if (cancelled) { ws?.close(); return; }
+        ws!.send(JSON.stringify({ type: "init", launch_id: id }));
+      };
+
+      ws.onerror = (e) => {
+        console.error("[VibeLauncher] WebSocket error:", e);
+      };
+
+      ws.onclose = () => {
+        console.log("[VibeLauncher] WebSocket closed");
+      };
+    }, 100);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
       }
     };
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ type: "init", launch_id: id }));
-    };
-
-    return () => ws.close();
   }, [id]);
 
   function sendBrainstormResponse(responses: Record<string, string>) {
