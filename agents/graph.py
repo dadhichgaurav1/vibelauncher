@@ -5,7 +5,7 @@ Orchestrates all agent nodes with critic review loops and human interrupts.
 
 from __future__ import annotations
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver as SqliteSaver
 
 from state import VibeLaunchState
 from nodes.product_analyst import run_product_analyst
@@ -187,7 +187,7 @@ def route_after_review(state: VibeLaunchState) -> str:
 
 # ─── Build graph ─────────────────────────────────────────────────────────────
 
-def build_graph():
+def build_graph(checkpointer=None):
     builder = StateGraph(VibeLaunchState)
 
     # Add nodes
@@ -220,12 +220,10 @@ def build_graph():
                                    {"publisher": "publisher", "content_creator": "content_creator"})
     builder.add_edge("publisher", END)
 
-    # Checkpointer for pause/resume on human interrupts
-    checkpointer = SqliteSaver.from_conn_string("./checkpoints.db")
     return builder.compile(
         checkpointer=checkpointer,
-        interrupt_before=["human_review"],  # pause before human review
+        interrupt_before=["human_review"],
     )
 
 
-graph = build_graph()
+# Graph is instantiated at server startup with an async checkpointer

@@ -14,7 +14,7 @@ from typing import Optional
 
 from config import X_CONSUMER_KEY, X_CONSUMER_SECRET
 from db.database import init_db, create_session, update_session, get_session, save_x_tokens, get_x_tokens
-from graph import graph
+from graph import build_graph
 from tools.ws_notifier import register_connection, unregister_connection
 from tools.browser_client import register_extension, unregister_extension, receive_browser_result
 from tools.x_api import get_request_token, exchange_verifier_for_tokens
@@ -36,9 +36,15 @@ _oauth_request_tokens: dict[str, str] = {}  # token -> secret
 _human_response_queues: dict[str, asyncio.Queue] = {}
 
 
+graph = None  # initialized on startup with async checkpointer
+
 @app.on_event("startup")
 async def startup():
+    global graph
     init_db()
+    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+    checkpointer = AsyncSqliteSaver.from_conn_string("./checkpoints.db")
+    graph = build_graph(checkpointer=checkpointer)
 
 
 # ─── Launch endpoints ─────────────────────────────────────────────────────────
