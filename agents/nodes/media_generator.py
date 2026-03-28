@@ -12,7 +12,7 @@ from tools.ws_notifier import notify
 from config import GEMINI_API_KEY
 
 
-GEMINI_IMAGE_URL = "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict"
+GEMINI_IMAGE_URL = "https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict"
 GEMINI_VEO_URL = "https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning"
 
 
