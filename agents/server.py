@@ -124,46 +124,36 @@ async def launch_websocket(websocket: WebSocket, launch_id: str):
     # Send initial session data
     await websocket.send_text(json.dumps({"type": "phase", "data": "loading"}))
 
+    graph_task = asyncio.create_task(
+        _run_graph(launch_id, session["state"], websocket)
+    )
+
     try:
-        # Run graph in background task
-        graph_task = asyncio.create_task(
-            _run_graph(launch_id, session["state"], websocket)
-        )
-
-        # Listen for messages from frontend
+        # Listen for messages from frontend — blocks until disconnect
         while True:
-            try:
-                msg_text = await asyncio.wait_for(websocket.receive_text(), timeout=0.1)
-                msg = json.loads(msg_text)
+            msg_text = await websocket.receive_text()
+            msg = json.loads(msg_text)
+            q = _human_response_queues.get(launch_id)
 
-                if msg["type"] == "brainstorm_response":
-                    q = _human_response_queues.get(launch_id)
-                    if q:
-                        await q.put({"type": "brainstorm", "data": msg["data"]})
-
-                elif msg["type"] == "content_approval":
-                    q = _human_response_queues.get(launch_id)
-                    if q:
-                        await q.put({
-                            "type": "approval",
-                            "approved": msg.get("approved", False),
-                            "feedback": msg.get("feedback", ""),
-                        })
-
-                elif msg["type"] == "browser_result":
-                    await receive_browser_result(launch_id, msg["data"])
-
-            except asyncio.TimeoutError:
-                pass
-
-            if graph_task.done():
-                break
+            if msg["type"] == "brainstorm_response" and q:
+                await q.put({"type": "brainstorm", "data": msg["data"]})
+            elif msg["type"] == "content_approval" and q:
+                await q.put({
+                    "type": "approval",
+                    "approved": msg.get("approved", False),
+                    "feedback": msg.get("feedback", ""),
+                })
+            elif msg["type"] == "browser_result":
+                await receive_browser_result(launch_id, msg["data"])
 
     except WebSocketDisconnect:
         pass
+    except Exception as e:
+        print(f"WebSocket handler error: {e}")
     finally:
         unregister_connection(launch_id)
-        graph_task.cancel()
+        if not graph_task.done():
+            graph_task.cancel()
 
 
 async def _run_graph(launch_id: str, initial_state: dict, websocket: WebSocket):
