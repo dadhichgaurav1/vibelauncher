@@ -13,7 +13,7 @@ from config import GEMINI_API_KEY
 
 
 GEMINI_IMAGE_URL = "https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict"
-GEMINI_VEO_URL = "https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning"
+GEMINI_VEO_URL = "https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-fast-generate-001:predictLongRunning"
 
 
 async def run_media_generator(state: VibeLaunchState) -> dict:
@@ -145,14 +145,29 @@ async def _generate_video(prompt: str, duration_seconds: int) -> str | None:
             if not op_name:
                 return None
 
-            for _ in range(20):
-                await asyncio.sleep(6)
+            for _ in range(30):
+                await asyncio.sleep(5)
                 poll_resp = await client.get(
                     f"https://generativelanguage.googleapis.com/v1beta/{op_name}?key={GEMINI_API_KEY}"
                 )
                 poll_data = poll_resp.json()
                 if poll_data.get("done"):
-                    return poll_data.get("response", {}).get("predictions", [{}])[0].get("video", {}).get("uri")
+                    response = poll_data.get("response", {})
+                    # Veo 3.0 response format
+                    samples = response.get("generateVideoResponse", {}).get("generatedSamples", [])
+                    if samples:
+                        uri = samples[0].get("video", {}).get("uri", "")
+                        if uri:
+                            # Append API key for download
+                            return f"{uri}&key={GEMINI_API_KEY}" if "?" in uri else f"{uri}?key={GEMINI_API_KEY}"
+                    # Fallback: Veo 2.0 response format
+                    preds = response.get("predictions", [])
+                    if preds:
+                        return preds[0].get("video", {}).get("uri")
+                    return None
+                if poll_data.get("error"):
+                    print(f"Video poll error: {poll_data['error']}")
+                    return None
     except Exception as e:
         print(f"Video generation error: {e}")
     return None
