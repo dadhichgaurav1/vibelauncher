@@ -39,3 +39,6 @@ npm-debug.log*
 
 # Extension build
 apps/extension/dist/
+apps/extension/background.js
+apps/extension/content.js
+apps/extension/popup.js

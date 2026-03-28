@@ -30,7 +30,7 @@ uvicorn server:app --reload --port 8000
 ```bash
 cd apps/extension
 npm install
-node build.js
+node build.js   # compiles TypeScript → background.js, content.js, popup.js
 ```
 
 Then in Chrome:
