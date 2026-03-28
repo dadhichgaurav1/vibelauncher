@@ -202,28 +202,42 @@ async def _run_graph(launch_id: str, initial_state: dict, websocket: WebSocket):
         }))
         await websocket.send_text(json.dumps({"type": "phase", "data": "review"}))
 
-        # Loop: wait for approval, if rejected loop back
-        while True:
-            graph_state = await graph.aget_state(config)
-            if not graph_state.next:
-                break
+        # Wait for human approval (blocks until user clicks approve/reject)
+        if q:
+            response = await asyncio.wait_for(q.get(), timeout=600)
+            if response["type"] == "approval":
+                await graph.aupdate_state(
+                    config,
+                    {
+                        "approved": response["approved"],
+                        "approval_feedback": response.get("feedback"),
+                    },
+                )
+                # Resume graph — goes to publisher if approved, content_creator if rejected
+                async for event in graph.astream(None, config):
+                    pass
 
-            if q:
-                response = await asyncio.wait_for(q.get(), timeout=600)
-                if response["type"] == "approval":
-                    await graph.aupdate_state(
-                        config,
-                        {
-                            "approved": response["approved"],
-                            "approval_feedback": response.get("feedback"),
-                        },
-                    )
-                    # Resume — if approved goes to publisher, if rejected loops content_creator → media → human_review again
-                    async for event in graph.astream(None, config):
-                        pass
+                # If rejected, may loop back — wait again
+                while True:
+                    gs = await graph.aget_state(config)
+                    if not gs.next:
+                        break
+                    # Paused at human_review again after regeneration
+                    content_data = gs.values.get("content") or {}
+                    await websocket.send_text(json.dumps({"type": "content_ready", "data": content_data}))
+                    await websocket.send_text(json.dumps({"type": "phase", "data": "review"}))
 
-        state_snapshot = await graph.aget_state(config)
-        update_session(launch_id, "completed", state_snapshot.values)
+                    resp2 = await asyncio.wait_for(q.get(), timeout=600)
+                    if resp2["type"] == "approval":
+                        await graph.aupdate_state(config, {
+                            "approved": resp2["approved"],
+                            "approval_feedback": resp2.get("feedback"),
+                        })
+                        async for event in graph.astream(None, config):
+                            pass
+
+        final_state = await graph.aget_state(config)
+        update_session(launch_id, "completed", final_state.values)
 
     except asyncio.TimeoutError:
         await websocket.send_text(json.dumps({

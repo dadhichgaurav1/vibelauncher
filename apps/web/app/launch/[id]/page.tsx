@@ -133,9 +133,12 @@ export default function LaunchPage() {
   }
 
   function sendContentApproval(approved: boolean, feedback?: string) {
-    wsRef.current?.send(
-      JSON.stringify({ type: "content_approval", approved, feedback })
-    );
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "content_approval", approved, feedback }));
+    } else {
+      console.error("[VibeLauncher] Cannot send approval — WebSocket not open");
+    }
   }
 
   const currentStageName =
