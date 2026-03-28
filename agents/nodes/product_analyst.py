@@ -75,19 +75,18 @@ async def run_product_analyst(state: VibeLaunchState) -> dict:
         "todos": todos,
     })
 
-    # Step 2: Execute — work through each todo and produce the brief
-    # Mark todos in progress as we go
-    for i, todo in enumerate(todos):
-        todos[i]["status"] = "in_progress"
+    # Step 2: Execute — mark todo in_progress, do work, mark done
+    # Mark first todo (extraction) as in progress
+    if todos:
+        todos[0]["status"] = "in_progress"
         await notify(ws, "stage_update", {
             "name": "product_analyst",
             "label": "Product analysis",
             "status": "running",
             "todos": todos,
         })
-        todos[i]["status"] = "done"
 
-    # Main extraction
+    # Main extraction (the actual LLM work)
     result = await llm_json(
         system=SYSTEM_PROMPT,
         user=f"""Available inputs:
@@ -105,6 +104,10 @@ Return a ProductBrief JSON with fields:
     )
 
     product = ProductBrief(**result).model_dump()
+
+    # Mark all todos done after LLM work completes
+    for todo in todos:
+        todo["status"] = "done"
 
     await notify(ws, "stage_update", {
         "name": "product_analyst",

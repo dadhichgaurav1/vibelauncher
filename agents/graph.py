@@ -222,6 +222,7 @@ def build_graph(checkpointer=None):
 
     return builder.compile(
         checkpointer=checkpointer,
+        interrupt_after=["brainstorm"],
         interrupt_before=["human_review"],
     )
 

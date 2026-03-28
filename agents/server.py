@@ -172,45 +172,47 @@ async def _run_graph(launch_id: str, initial_state: dict, websocket: WebSocket):
     q = _human_response_queues.get(launch_id)
 
     try:
-        # Run until first interrupt (brainstorm)
+        # Phase 1: Run from start → interrupt after brainstorm
         async for event in graph.astream(initial_state, config):
             pass
 
-        # Check if interrupted at brainstorm
-        graph_state = graph.get_state(config)
+        # Now paused after brainstorm node (interrupt_after=["brainstorm"])
+        # Wait for human brainstorm responses
+        if q:
+            response = await asyncio.wait_for(q.get(), timeout=600)
+            if response["type"] == "brainstorm":
+                await graph.aupdate_state(
+                    config,
+                    {"brainstorm_responses": response["data"]},
+                )
 
-        if graph_state.next and "human_review" not in graph_state.next:
-            # Waiting at brainstorm — wait for human response
-            if q:
-                response = await asyncio.wait_for(q.get(), timeout=600)  # 10 min timeout
-                if response["type"] == "brainstorm":
-                    # Resume with brainstorm responses
-                    graph.update_state(
-                        config,
-                        {"brainstorm_responses": response["data"]},
-                    )
-                    # Continue running
-                    async for event in graph.astream(None, config):
-                        pass
+        # Phase 2: Resume from deep_research → interrupt before human_review
+        async for event in graph.astream(None, config):
+            pass
 
-        # Check if interrupted at human_review
-        graph_state = graph.get_state(config)
-        while graph_state.next and "human_review" in str(graph_state.next):
+        # Now paused before human_review (interrupt_before=["human_review"])
+        # Loop: wait for approval, if rejected loop back
+        while True:
+            graph_state = await graph.aget_state(config)
+            if not graph_state.next:
+                break  # graph finished (published or ended)
+
             if q:
                 response = await asyncio.wait_for(q.get(), timeout=600)
                 if response["type"] == "approval":
-                    graph.update_state(
+                    await graph.aupdate_state(
                         config,
                         {
                             "approved": response["approved"],
                             "approval_feedback": response.get("feedback"),
                         },
                     )
+                    # Resume — if approved goes to publisher, if rejected loops content_creator → media → human_review again
                     async for event in graph.astream(None, config):
                         pass
-                    graph_state = graph.get_state(config)
 
-        update_session(launch_id, "completed", graph.get_state(config).values)
+        state_snapshot = await graph.aget_state(config)
+        update_session(launch_id, "completed", state_snapshot.values)
 
     except asyncio.TimeoutError:
         await websocket.send_text(json.dumps({
@@ -218,6 +220,8 @@ async def _run_graph(launch_id: str, initial_state: dict, websocket: WebSocket):
             "data": "Session timed out waiting for input",
         }))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         await websocket.send_text(json.dumps({"type": "error", "data": str(e)}))
         update_session(launch_id, "failed", {})
 
