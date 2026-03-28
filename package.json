@@ -1,0 +1,18 @@
+{
+  "name": "vibelauncher",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/extension"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build:web": "npm run build --workspace=apps/web",
+    "dev:agents": "cd agents && uvicorn server:app --reload --port 8000",
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:agents\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
