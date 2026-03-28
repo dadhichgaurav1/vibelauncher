@@ -1,7 +1,8 @@
-"""Base agent class implementing Plan-then-Execute pattern."""
+"""Base LLM call utilities."""
 
 from __future__ import annotations
 import json
+import re
 from typing import Any
 from openai import AsyncOpenAI
 from config import OPENAI_API_KEY, OPENAI_MODEL
@@ -27,26 +28,30 @@ async def llm(
     if response_format:
         kwargs["response_format"] = response_format
 
-    resp = await client.chat.completions.create(**kwargs)
-    return resp.choices[0].message.content or ""
+    try:
+        resp = await client.chat.completions.create(**kwargs)
+        return resp.choices[0].message.content or ""
+    except Exception as e:
+        # If response_format fails, retry without it
+        if response_format:
+            print(f"LLM call failed with response_format, retrying without: {e}")
+            kwargs.pop("response_format", None)
+            resp = await client.chat.completions.create(**kwargs)
+            return resp.choices[0].message.content or ""
+        raise
 
 
 async def llm_json(system: str, user: str, temperature: float = 0.3) -> dict:
     """LLM call that returns parsed JSON."""
-    raw = await llm(system, user, response_format={"type": "json_object"}, temperature=temperature)
-    return json.loads(raw)
-
-
-async def plan_todos(agent_name: str, task_description: str, context: str) -> list[dict]:
-    """
-    Ask the LLM to decompose the task into an ordered to-do list.
-    Every agent calls this first before doing any work.
-    """
-    result = await llm_json(
-        system=f"""You are the planning step for the {agent_name} agent.
-Given a task description and context, decompose the work into a clear ordered list of to-do items.
-Be specific and exhaustive — missing a step means it won't happen.
-Return JSON: {{ "todos": [ {{ "id": 1, "task": "...", "status": "pending" }} ] }}""",
-        user=f"Task: {task_description}\n\nContext:\n{context}",
+    raw = await llm(
+        system + "\n\nYou MUST respond with valid JSON only. No markdown, no code fences.",
+        user,
+        response_format={"type": "json_object"},
+        temperature=temperature,
     )
-    return result.get("todos", [])
+    # Strip markdown code fences if present
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+    return json.loads(raw)

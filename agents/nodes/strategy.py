@@ -43,20 +43,30 @@ async def run_strategy(state: VibeLaunchState) -> dict:
 Brainstorm responses: {json.dumps(brainstorm, indent=2)}
 Research brief: {json.dumps(research, indent=2)[:3000]}"""
 
+    # Use research brief's content_strategy directly — don't regenerate
+    research_content_strategy = research.get("content_strategy", {})
+
     result = await llm_json(
         system=SYSTEM_PROMPT,
-        user=f"""{context}\n\nReturn LaunchStrategy JSON:
+        user=f"""{context}\n\nIMPORTANT: The deep research agent already decided the content formats.
+Use EXACTLY these format decisions — do not change or contradict them:
+{json.dumps(research_content_strategy, indent=2)}
+
+Return LaunchStrategy JSON:
 - narrative (str): core story arc (2-3 sentences)
 - icp (str): precise ICP definition
 - tone (str): voice direction
 - posting_day (str)
 - posting_time (str)
 - timezone (str)
-- content_strategy: {{ "formats": [str], "rationale": {{ "tweet": str|null, "thread": str|null, "image": str|null, "video": str|null }} }}
-- visual_brief: {{ "aesthetic": str, "color_palette": [str], "style": str, "mood": str }}
+- visual_brief: {{ "aesthetic": str, "color_palette": [str, 3-5 hex codes], "style": str, "mood": str }}
+
+Do NOT include content_strategy — it will be inherited from research.
 """,
     )
 
+    # Inherit content_strategy from research, not strategy LLM
+    result["content_strategy"] = research_content_strategy
     strategy = LaunchStrategy(**result).model_dump()
 
     todos[0]["status"] = "done"

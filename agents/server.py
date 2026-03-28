@@ -191,11 +191,22 @@ async def _run_graph(launch_id: str, initial_state: dict, websocket: WebSocket):
             pass
 
         # Now paused before human_review (interrupt_before=["human_review"])
+        # Send content_ready since human_review_node won't run until resumed
+        graph_state = await graph.aget_state(config)
+        content_data = graph_state.values.get("content") or {}
+        strategy_data = graph_state.values.get("strategy") or {}
+        await websocket.send_text(json.dumps({"type": "content_ready", "data": content_data}))
+        await websocket.send_text(json.dumps({
+            "type": "session",
+            "data": {"content": content_data, "strategy": strategy_data},
+        }))
+        await websocket.send_text(json.dumps({"type": "phase", "data": "review"}))
+
         # Loop: wait for approval, if rejected loop back
         while True:
             graph_state = await graph.aget_state(config)
             if not graph_state.next:
-                break  # graph finished (published or ended)
+                break
 
             if q:
                 response = await asyncio.wait_for(q.get(), timeout=600)
