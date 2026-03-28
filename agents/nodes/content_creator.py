@@ -68,11 +68,11 @@ Generate 2-4 prompts.
 Return JSON: { "images": [{ "prompt": str, "dimensions": "1200x675", "placement": str }] }"""
 
 
-VIDEO_PROMPT_SYSTEM = """Write a video generation prompt for Veo.
+VIDEO_PROMPT_SYSTEM = """Write a video generation prompt for Veo (8-second clip).
 
-30-45 seconds if possible. Hook in first 2 seconds. Captions/text overlays. 9:16 aspect ratio. 1080p.
-Match the aesthetic direction exactly.
-Return JSON: { "prompt": str, "duration_seconds": 30, "aspect_ratio": "9:16" }"""
+The video is exactly 8 seconds. Hook in first 2 seconds. 9:16 vertical aspect ratio. 1080p.
+Match the aesthetic direction exactly. Focus on one strong visual moment — don't try to cram a full story into 8 seconds.
+Return JSON: { "prompt": str, "duration_seconds": 8, "aspect_ratio": "9:16" }"""
 
 
 async def run_content_creator(state: VibeLaunchState, feedback: str | None = None) -> dict:
