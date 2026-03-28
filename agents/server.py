@@ -37,14 +37,21 @@ _human_response_queues: dict[str, asyncio.Queue] = {}
 
 
 graph = None  # initialized on startup with async checkpointer
+_checkpointer = None
 
 @app.on_event("startup")
 async def startup():
-    global graph
+    global graph, _checkpointer
     init_db()
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-    checkpointer = AsyncSqliteSaver.from_conn_string("./checkpoints.db")
+    _checkpointer = AsyncSqliteSaver.from_conn_string("./checkpoints.db")
+    checkpointer = await _checkpointer.__aenter__()
     graph = build_graph(checkpointer=checkpointer)
+
+@app.on_event("shutdown")
+async def shutdown():
+    if _checkpointer:
+        await _checkpointer.__aexit__(None, None, None)
 
 
 # ─── Launch endpoints ─────────────────────────────────────────────────────────
