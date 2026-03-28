@@ -1,4 +1,4 @@
-"""Publisher node — posts to X via API."""
+"""Publisher node — posts to X via API, or shows ready-to-publish if not connected."""
 
 from __future__ import annotations
 from state import VibeLaunchState, PublishResult
@@ -13,6 +13,28 @@ async def run_publisher(state: VibeLaunchState) -> dict:
     access_token = state.get("x_access_token")
     access_token_secret = state.get("x_access_token_secret")
 
+    # Check if X is connected
+    if not access_token or not access_token_secret:
+        # No X connected — mark as ready to publish (demo mode)
+        await notify(ws, "stage_update", {
+            "name": "publisher", "label": "Publishing", "status": "done",
+            "todos": [{"id": 1, "task": "Ready to publish (connect X to post)", "status": "done"}],
+        })
+        await notify(ws, "step_output", {
+            "stage": "publisher", "step": "ready",
+            "label": "Ready to Publish",
+            "data": {"status": "ready", "message": "Your launch content is ready. Connect your X account to post automatically."},
+        })
+        await notify(ws, "phase", "published")
+
+        from datetime import datetime
+        result = PublishResult(posted_at=datetime.utcnow().isoformat())
+        return {
+            "published": result.model_dump(),
+            "agent_traces": {**(state.get("agent_traces") or {}), "publisher": {"todos": []}},
+        }
+
+    # X is connected — actually post
     todos = [
         {"id": 1, "task": "Upload media", "status": "in_progress"},
         {"id": 2, "task": "Post tweet", "status": "pending"},
@@ -30,7 +52,7 @@ async def run_publisher(state: VibeLaunchState) -> dict:
         media_ids = []
         if content.get("images"):
             for img in content["images"][:4]:
-                if img.get("url"):
+                if img.get("url") and not img["url"].startswith("data:"):
                     media_id = await upload_media(img["url"], access_token, access_token_secret)
                     if media_id:
                         media_ids.append(media_id)
