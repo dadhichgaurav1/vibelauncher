@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { BrainstormPanel } from "@/components/chat/BrainstormPanel";
-import { ReviewPanel } from "@/components/review/ReviewPanel";
+import { ReviewPanel, type ApprovalPayload } from "@/components/review/ReviewPanel";
 import { AgentTrace } from "@/components/AgentTrace";
 import { LiveFeed } from "@/components/LiveFeed";
 import type { LaunchSession, AgentStage, StepOutput } from "@/lib/types";
 
-type Phase = "loading" | "brainstorm" | "running" | "review" | "published";
+type Phase = "loading" | "brainstorm" | "running" | "review" | "publishing" | "published";
 
 export default function LaunchPage() {
   const { id } = useParams<{ id: string }>();
@@ -132,12 +132,22 @@ export default function LaunchPage() {
     setPhase("running");
   }
 
-  function sendContentApproval(approved: boolean, feedback?: string) {
+  function sendContentApproval(approved: boolean, feedback?: string, payload?: ApprovalPayload) {
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "content_approval", approved, feedback }));
+      console.log("[VibeLauncher] Sending approval:", { approved, feedback, payload });
+      ws.send(JSON.stringify({
+        type: "content_approval",
+        approved,
+        feedback,
+        selected_formats: payload?.selectedFormats,
+        schedule_mode: payload?.scheduleMode,
+      }));
+      if (approved) {
+        setPhase("publishing");
+      }
     } else {
-      console.error("[VibeLauncher] Cannot send approval — WebSocket not open");
+      console.error("[VibeLauncher] Cannot send approval — WebSocket not open, readyState:", ws?.readyState);
     }
   }
 
@@ -196,9 +206,20 @@ export default function LaunchPage() {
             <ReviewPanel
               content={session.content}
               strategy={session.strategy}
-              onApprove={() => sendContentApproval(true)}
+              onApprove={(payload) => sendContentApproval(true, undefined, payload)}
               onReject={(feedback) => sendContentApproval(false, feedback)}
             />
+          )}
+
+          {phase === "publishing" && (
+            <div className="flex items-center justify-center h-full">
+              <div className="space-y-4 text-center">
+                <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto" />
+                <p className="text-sm text-muted-foreground">
+                  Publishing to X...
+                </p>
+              </div>
+            </div>
           )}
 
           {phase === "published" && (
@@ -207,13 +228,28 @@ export default function LaunchPage() {
                 <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center mx-auto">
                   <span className="text-2xl">🚀</span>
                 </div>
-                <h2 className="text-xl font-semibold">You&apos;re live.</h2>
-                <p className="text-sm text-muted-foreground">
-                  Your launch has been posted to X.
-                  <br />
-                  Check back in an hour — engage with every reply.
-                </p>
-                {session?.published && (
+                {session?.published?.scheduled_at ? (
+                  <>
+                    <h2 className="text-xl font-semibold">Scheduled.</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Your launch is scheduled for{" "}
+                      <span className="font-medium text-foreground">
+                        {session.published.scheduled_at}
+                      </span>
+                      .
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-semibold">You&apos;re live.</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Your launch has been posted to X.
+                      <br />
+                      Check back in an hour — engage with every reply.
+                    </p>
+                  </>
+                )}
+                {session?.published?.tweet_id && (
                   <a
                     href={`https://x.com/i/web/status/${session.published.tweet_id}`}
                     target="_blank"

@@ -95,9 +95,7 @@ async def media_generator_node(state: VibeLaunchState) -> dict:
 
 
 async def human_review_node(state: VibeLaunchState) -> dict:
-    """Interrupt here for human review."""
-    await notify(state["ws_channel"], "content_ready", state.get("content") or {})
-    await notify(state["ws_channel"], "phase", "review")
+    """Interrupt here for human review. Notifications handled by server.py."""
     return {}
 
 

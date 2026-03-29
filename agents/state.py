@@ -158,6 +158,8 @@ class VibeLaunchState(TypedDict):
     # Publishing
     approved: bool
     approval_feedback: Optional[str]
+    selected_formats: Optional[list[str]]  # user-chosen formats to publish
+    schedule_mode: Optional[str]            # "now" or "scheduled"
     published: Optional[dict]        # PublishResult serialized
 
     # Error

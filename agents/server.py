@@ -92,6 +92,8 @@ async def create_launch(body: LaunchInput):
         "x_access_token_secret": None,
         "approved": False,
         "approval_feedback": None,
+        "selected_formats": None,
+        "schedule_mode": None,
         "published": None,
         "error": None,
     }
@@ -135,6 +137,7 @@ async def launch_websocket(websocket: WebSocket, launch_id: str):
             msg = json.loads(msg_text)
             q = _human_response_queues.get(launch_id)
 
+            print(f"[VibeLauncher] WS message received: {msg['type']}")
             if msg["type"] == "brainstorm_response" and q:
                 await q.put({"type": "brainstorm", "data": msg["data"]})
             elif msg["type"] == "content_approval" and q:
@@ -142,6 +145,8 @@ async def launch_websocket(websocket: WebSocket, launch_id: str):
                     "type": "approval",
                     "approved": msg.get("approved", False),
                     "feedback": msg.get("feedback", ""),
+                    "selected_formats": msg.get("selected_formats"),
+                    "schedule_mode": msg.get("schedule_mode", "now"),
                 })
             elif msg["type"] == "browser_result":
                 await receive_browser_result(launch_id, msg["data"])
@@ -195,17 +200,23 @@ async def _run_graph(launch_id: str, initial_state: dict, websocket: WebSocket):
         # Wait for human approval (blocks until user clicks approve/reject)
         if q:
             response = await asyncio.wait_for(q.get(), timeout=600)
+            print(f"[VibeLauncher] Got approval response: {response}")
             if response["type"] == "approval":
                 await graph.aupdate_state(
                     config,
                     {
                         "approved": response["approved"],
                         "approval_feedback": response.get("feedback"),
+                        "selected_formats": response.get("selected_formats"),
+                        "schedule_mode": response.get("schedule_mode", "now"),
                     },
                 )
+                if response["approved"]:
+                    await websocket.send_text(json.dumps({"type": "phase", "data": "publishing"}))
                 # Resume graph — goes to publisher if approved, content_creator if rejected
+                print("[VibeLauncher] Resuming graph after approval...")
                 async for event in graph.astream(None, config):
-                    pass
+                    print(f"[VibeLauncher] Graph event: {list(event.keys()) if isinstance(event, dict) else type(event)}")
 
                 # If rejected, may loop back — wait again
                 while True:

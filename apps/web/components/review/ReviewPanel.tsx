@@ -1,13 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, RefreshCw, Twitter, Clock, Eye } from "lucide-react";
-import type { ContentBundle, LaunchStrategy } from "@/lib/types";
+import { CheckCircle2, RefreshCw, Twitter, Clock, Eye, Calendar, Zap } from "lucide-react";
+import type { ContentBundle, LaunchStrategy, ContentFormat } from "@/lib/types";
+
+export interface ApprovalPayload {
+  selectedFormats: ContentFormat[];
+  scheduleMode: "now" | "scheduled";
+}
 
 interface Props {
   content: ContentBundle;
   strategy?: LaunchStrategy;
-  onApprove: () => void;
+  onApprove: (payload: ApprovalPayload) => void;
   onReject: (feedback: string) => void;
 }
 
@@ -17,6 +22,31 @@ export function ReviewPanel({ content, strategy, onApprove, onReject }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("tweet");
   const [rejecting, setRejecting] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [scheduleMode, setScheduleMode] = useState<"now" | "scheduled">("now");
+
+  // Build available content formats with selection state
+  const availableFormats: ContentFormat[] = [
+    ...(content.tweet ? (["tweet"] as ContentFormat[]) : []),
+    ...(content.thread ? (["thread"] as ContentFormat[]) : []),
+    ...(content.images?.length ? (["image"] as ContentFormat[]) : []),
+    ...(content.video ? (["video"] as ContentFormat[]) : []),
+  ];
+
+  const [selectedFormats, setSelectedFormats] = useState<Set<ContentFormat>>(
+    new Set(availableFormats)
+  );
+
+  const toggleFormat = (format: ContentFormat) => {
+    setSelectedFormats((prev) => {
+      const next = new Set(prev);
+      if (next.has(format)) {
+        next.delete(format);
+      } else {
+        next.add(format);
+      }
+      return next;
+    });
+  };
 
   const availableTabs: Tab[] = [
     ...(content.tweet ? (["tweet"] as Tab[]) : []),
@@ -26,12 +56,21 @@ export function ReviewPanel({ content, strategy, onApprove, onReject }: Props) {
     ...(strategy ? (["strategy"] as Tab[]) : []),
   ];
 
+  const formatLabels: Record<ContentFormat, string> = {
+    tweet: "Tweet",
+    thread: "Thread",
+    image: "Images",
+    video: "Video",
+  };
+
+  const hasSchedule = strategy?.posting_day && strategy?.posting_time;
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-10 space-y-6 animate-slide-up">
       <div className="space-y-1">
         <h2 className="text-xl font-semibold tracking-tight">Review your launch</h2>
         <p className="text-sm text-muted-foreground">
-          Reviewed and polished by our critic agent. Make any edits, then approve.
+          Review each piece, choose what to post, then launch.
         </p>
       </div>
 
@@ -71,16 +110,104 @@ export function ReviewPanel({ content, strategy, onApprove, onReject }: Props) {
         )}
       </div>
 
+      {/* Publish options */}
+      <div className="border border-border rounded-2xl p-5 space-y-5">
+        {/* Content selection */}
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+            What to publish
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {availableFormats.map((format) => {
+              const selected = selectedFormats.has(format);
+              return (
+                <button
+                  key={format}
+                  onClick={() => toggleFormat(format)}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm rounded-xl border transition-all ${
+                    selected
+                      ? "border-orange-400 bg-orange-50 text-foreground"
+                      : "border-border text-muted-foreground hover:border-zinc-300"
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+                      selected
+                        ? "border-orange-500 bg-orange-500"
+                        : "border-zinc-300"
+                    }`}
+                  >
+                    {selected && (
+                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                        <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                  {formatLabels[format]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Schedule options */}
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+            When to publish
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setScheduleMode("now")}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-xl border transition-all ${
+                scheduleMode === "now"
+                  ? "border-orange-400 bg-orange-50 text-foreground font-medium"
+                  : "border-border text-muted-foreground hover:border-zinc-300"
+              }`}
+            >
+              <Zap size={13} />
+              Post now
+            </button>
+            {hasSchedule && (
+              <button
+                onClick={() => setScheduleMode("scheduled")}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-xl border transition-all ${
+                  scheduleMode === "scheduled"
+                    ? "border-orange-400 bg-orange-50 text-foreground font-medium"
+                    : "border-border text-muted-foreground hover:border-zinc-300"
+                }`}
+              >
+                <Calendar size={13} />
+                Schedule — {strategy!.posting_day} · {strategy!.posting_time}{" "}
+                {strategy!.timezone}
+              </button>
+            )}
+          </div>
+          {scheduleMode === "scheduled" && (
+            <p className="text-xs text-muted-foreground">
+              Your content will be queued and posted at the recommended time from the strategy agent.
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* Actions */}
       <div className="flex items-center gap-3 pt-2">
         {!rejecting ? (
           <>
             <button
-              onClick={onApprove}
-              className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white text-sm font-medium rounded-xl hover:bg-orange-600 transition-all"
+              onClick={() =>
+                onApprove({
+                  selectedFormats: Array.from(selectedFormats),
+                  scheduleMode,
+                })
+              }
+              disabled={selectedFormats.size === 0}
+              className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white text-sm font-medium rounded-xl hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               <CheckCircle2 size={14} />
-              Approve & post
+              {scheduleMode === "now"
+                ? `Post ${selectedFormats.size} item${selectedFormats.size !== 1 ? "s" : ""} now`
+                : `Schedule ${selectedFormats.size} item${selectedFormats.size !== 1 ? "s" : ""}`}
             </button>
             <button
               onClick={() => setRejecting(true)}
