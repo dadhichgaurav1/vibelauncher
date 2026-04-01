@@ -147,6 +147,7 @@ class VibeLaunchState(TypedDict):
     # Critic + retry tracking
     critiques: Optional[dict]
     retry_counts: dict[str, int]
+    critic_feedback: Optional[str]
 
     # Agent execution traces
     agent_traces: dict[str, dict]

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2, RefreshCw, Twitter, Clock, Eye, Calendar, Zap } from "lucide-react";
-import type { ContentBundle, LaunchStrategy, ContentFormat } from "@/lib/types";
+import type { ContentBundle, LaunchStrategy, ContentFormat, CritiqueResult } from "@/lib/types";
 
 export interface ApprovalPayload {
   selectedFormats: ContentFormat[];
@@ -12,13 +12,14 @@ export interface ApprovalPayload {
 interface Props {
   content: ContentBundle;
   strategy?: LaunchStrategy;
+  critique?: CritiqueResult;
   onApprove: (payload: ApprovalPayload) => void;
   onReject: (feedback: string) => void;
 }
 
 type Tab = "tweet" | "thread" | "images" | "video" | "strategy";
 
-export function ReviewPanel({ content, strategy, onApprove, onReject }: Props) {
+export function ReviewPanel({ content, strategy, critique, onApprove, onReject }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("tweet");
   const [rejecting, setRejecting] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -73,6 +74,41 @@ export function ReviewPanel({ content, strategy, onApprove, onReject }: Props) {
           Review each piece, choose what to post, then launch.
         </p>
       </div>
+
+      {/* Critic quality assessment */}
+      {critique && (
+        <div className={`border rounded-2xl p-4 space-y-2 ${
+          critique.pass
+            ? "border-green-200 bg-green-50/50"
+            : "border-amber-200 bg-amber-50/50"
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${critique.pass ? "bg-green-500" : "bg-amber-500"}`} />
+              <span className="text-sm font-medium">
+                Quality gate {critique.pass ? "passed" : "passed with notes"}
+              </span>
+            </div>
+            <span className="text-sm font-mono font-medium">
+              {critique.score.toFixed(1)}/10
+            </span>
+          </div>
+          {critique.issues.length > 0 && (
+            <ul className="text-xs text-muted-foreground space-y-0.5 pl-4">
+              {critique.issues.map((issue, i) => (
+                <li key={i} className="list-disc">{issue}</li>
+              ))}
+            </ul>
+          )}
+          {critique.suggestions.length > 0 && (
+            <ul className="text-xs text-muted-foreground space-y-0.5 pl-4">
+              {critique.suggestions.map((s, i) => (
+                <li key={i} className="list-disc text-blue-600/70">{s}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">

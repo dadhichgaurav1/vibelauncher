@@ -6,7 +6,7 @@ import { BrainstormPanel } from "@/components/chat/BrainstormPanel";
 import { ReviewPanel, type ApprovalPayload } from "@/components/review/ReviewPanel";
 import { AgentTrace } from "@/components/AgentTrace";
 import { LiveFeed } from "@/components/LiveFeed";
-import type { LaunchSession, AgentStage, StepOutput } from "@/lib/types";
+import type { LaunchSession, AgentStage, StepOutput, CritiqueResult } from "@/lib/types";
 
 type Phase = "loading" | "brainstorm" | "running" | "review" | "publishing" | "published";
 
@@ -20,6 +20,7 @@ export default function LaunchPage() {
   });
   const [stages, setStages] = useState<AgentStage[]>([]);
   const [stepOutputs, setStepOutputs] = useState<StepOutput[]>([]);
+  const [contentCritique, setContentCritique] = useState<CritiqueResult | undefined>();
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -60,6 +61,16 @@ export default function LaunchPage() {
             break;
           case "step_output": {
             const key = `${msg.data.stage}-${msg.data.step}`;
+            // Capture critic content review for the review panel
+            if (msg.data.stage === "critic" && msg.data.step === "content_review") {
+              const d = msg.data.data;
+              setContentCritique({
+                pass: d.pass,
+                score: d.score,
+                issues: d.issues || [],
+                suggestions: d.suggestions || [],
+              });
+            }
             setStepOutputs((prev) => {
               const idx = prev.findIndex(
                 (s) => `${s.stage}-${s.step}` === key
@@ -206,6 +217,7 @@ export default function LaunchPage() {
             <ReviewPanel
               content={session.content}
               strategy={session.strategy}
+              critique={contentCritique}
               onApprove={(payload) => sendContentApproval(true, undefined, payload)}
               onReject={(feedback) => sendContentApproval(false, feedback)}
             />
