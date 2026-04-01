@@ -36,6 +36,12 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+logs/
+
+
+# Ralph Wiggum generated prompts
+PROMPT_build.md
+PROMPT_plan.md
 
 # Extension build
 apps/extension/dist/
